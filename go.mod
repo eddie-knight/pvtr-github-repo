@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/hashicorp/go-hclog v1.6.3
 	github.com/ossf/si-tooling/v2 v2.0.4
-	github.com/privateerproj/privateer-sdk v0.4.1
+	github.com/privateerproj/privateer-sdk v0.6.0
 	github.com/shurcooL/githubv4 v0.0.0-20240727222349-48295856cce7
 	github.com/spf13/cobra v1.8.1
 	github.com/spf13/viper v1.19.0

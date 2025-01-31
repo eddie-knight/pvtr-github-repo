@@ -3,7 +3,12 @@ package main
 import (
 	"fmt"
 
-	"github.com/eddie-knight/pvtr-osps-baseline/cmd"
+	"os"
+
+	"github.com/eddie-knight/pvtr-osps-baseline/armory"
+
+	"github.com/privateerproj/privateer-sdk/command"
+	"github.com/privateerproj/privateer-sdk/config"
 )
 
 var (
@@ -15,11 +20,37 @@ var (
 	GitCommitHash = ""
 	// BuiltAt is the actual build datetime
 	BuiltAt = ""
+
+	PluginName   = "github-repo"
+	RequiredVars = []string{
+		"owner",
+		"repo",
+	}
+
+	runCmd = command.NewPluginCommands(
+		PluginName,
+		Version,
+		VersionPostfix,
+		GitCommitHash,
+		&armory.Armory,
+		initializer,
+		RequiredVars,
+	)
 )
+
+// initializer is a custom function to set up the armory for our usecase
+func initializer(c *config.Config) (err error) {
+	armory.SetupArmory(c)
+	return
+}
 
 func main() {
 	if VersionPostfix != "" {
 		Version = fmt.Sprintf("%s-%s", Version, VersionPostfix)
 	}
-	cmd.Execute(Version, GitCommitHash, BuiltAt)
+
+	err := runCmd.Execute()
+	if err != nil {
+		os.Exit(1)
+	}
 }
