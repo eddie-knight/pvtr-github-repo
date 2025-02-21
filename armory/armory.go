@@ -12,11 +12,10 @@ type ArmoryData struct {
 }
 
 var (
-	Authenticated bool
-	GlobalConfig  *config.Config
-	Logger        hclog.Logger
-	Data          ArmoryData
-	Armory        = pluginkit.Armory{
+	GlobalConfig *config.Config
+	Logger       hclog.Logger
+	Data         ArmoryData
+	Armory       = pluginkit.Armory{
 		TestSuites: map[string][]pluginkit.TestSet{
 			"dev": {
 				DO_01,
@@ -87,25 +86,6 @@ var (
 func SetupArmory(c *config.Config) {
 	GlobalConfig = c
 	Logger = c.Logger
-	if c.GetString("token") == "" {
-		Armory.TestSuites = unauthenticatedTestSuites()
-	} else {
-		Authenticated = true
-	}
-}
-
-func unauthenticatedTestSuites() map[string][]pluginkit.TestSet {
-	return map[string][]pluginkit.TestSet{
-		"dev": {
-			QA_01,
-			BR_02,
-			BR_06,
-			LE_04,
-		},
-		"maturity_1": {},
-		"maturity_2": {},
-		"maturity_3": {},
-	}
 }
 
 func (r *ArmoryData) Rest() RestData {

@@ -40,7 +40,7 @@ func DO_12_T01() pluginkit.TestResult {
 
 func DO_12_T02() pluginkit.TestResult {
 
-	_, err := makeApiCall(Data.Rest().Insights.Project.Documentation.SignatureVerification, true)
+	_, err := makeApiCall(Data.Rest().Insights.Project.Documentation.SignatureVerification)
 
 	testResult := pluginkit.TestResult{
 		Description: "Check if the signature verification guide is accessible via HTTP.",

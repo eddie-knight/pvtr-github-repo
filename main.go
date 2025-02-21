@@ -25,6 +25,7 @@ var (
 	RequiredVars = []string{
 		"owner",
 		"repo",
+		"token",
 	}
 
 	runCmd = command.NewPluginCommands(

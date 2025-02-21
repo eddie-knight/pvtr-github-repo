@@ -65,18 +65,13 @@ type WorkflowPermissions struct {
 
 var APIBase = "https://api.github.com/repos"
 
-func makeApiCall(endpoint string, authRequired bool) (body []byte, err error) {
+func makeApiCall(endpoint string) (body []byte, err error) {
 	Logger.Trace(fmt.Sprintf("GET %s", endpoint))
 	request, err := http.NewRequest("GET", endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
-	if authRequired && Authenticated {
-		request.Header.Set("Authorization", "Bearer "+GlobalConfig.GetString("token"))
-	} else if authRequired && !Authenticated {
-		err = fmt.Errorf("auth required but not authenticated")
-		return nil, err
-	}
+	request.Header.Set("Authorization", "Bearer "+GlobalConfig.GetString("token"))
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
@@ -92,7 +87,7 @@ func makeApiCall(endpoint string, authRequired bool) (body []byte, err error) {
 
 func getSourceFile(owner, repo, path string) (response FileAPIResponse, err error) {
 	endpoint := fmt.Sprintf("%s/%s/%s/contents/%s", APIBase, owner, repo, path)
-	responseData, err := makeApiCall(endpoint, false)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		return
 	}
@@ -157,7 +152,7 @@ func (r *RestData) foundSecurityInsights(content DirContents) bool {
 
 func (r *RestData) getTopDirContents() {
 	endpoint := fmt.Sprintf("%s/%s/%s/contents", APIBase, r.owner, r.repo)
-	responseData, err := makeApiCall(endpoint, false)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		Logger.Error(fmt.Sprintf("error getting top level contents: %s", err.Error()))
 		return
@@ -167,7 +162,7 @@ func (r *RestData) getTopDirContents() {
 
 func (r *RestData) getForgeDirContents() {
 	endpoint := fmt.Sprintf("%s/%s/%s/contents/.github", APIBase, r.owner, r.repo)
-	responseData, err := makeApiCall(endpoint, false)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		Logger.Error(fmt.Sprintf("error getting forge contents: %s", err.Error()))
 		return
@@ -177,7 +172,7 @@ func (r *RestData) getForgeDirContents() {
 
 func (r *RestData) getMetadata() error {
 	endpoint := fmt.Sprintf("%s/%s/%s", APIBase, r.owner, r.repo)
-	responseData, err := makeApiCall(endpoint, false)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		return err
 	}
@@ -186,7 +181,7 @@ func (r *RestData) getMetadata() error {
 
 func (r *RepoData) getReleases(owner, repo string) error {
 	endpoint := fmt.Sprintf("%s/%s/%s/releases", APIBase, owner, repo)
-	responseData, err := makeApiCall(endpoint, false)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		return err
 	}
@@ -199,7 +194,7 @@ func (r *RestData) getWorkflowPermissions() (WorkflowPermissions, error) {
 	}
 
 	endpoint := fmt.Sprintf("%s/%s/%s/actions/permissions/workflow", APIBase, r.owner, r.repo)
-	responseData, err := makeApiCall(endpoint, true)
+	responseData, err := makeApiCall(endpoint)
 	if err != nil {
 		return WorkflowPermissions{}, err
 	}
@@ -213,7 +208,7 @@ func (r *RestData) getWorkflowPermissions() (WorkflowPermissions, error) {
 }
 
 func getFileContentByURL(downloadURL string) (string, error) {
-	responseData, err := makeApiCall(downloadURL, false)
+	responseData, err := makeApiCall(downloadURL)
 	if err != nil {
 		return "", err
 	}

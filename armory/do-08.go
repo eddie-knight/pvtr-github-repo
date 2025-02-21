@@ -38,7 +38,7 @@ func DO_08_T01() pluginkit.TestResult {
 }
 
 func DO_08_T02() pluginkit.TestResult {
-	_, err := makeApiCall(Data.Rest().Insights.Repository.Documentation.DependencyManagement, false)
+	_, err := makeApiCall(Data.Rest().Insights.Repository.Documentation.DependencyManagement)
 
 	testResult := pluginkit.TestResult{
 		Description: "Verifying that an artifact exists at the location specified for the dependency-management policy.",

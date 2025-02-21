@@ -37,7 +37,7 @@ func DO_03_T01() pluginkit.TestResult {
 }
 
 func DO_03_T02() pluginkit.TestResult {
-	_, err := makeApiCall(Data.Rest().Insights.Project.Documentation.DetailedGuide, false)
+	_, err := makeApiCall(Data.Rest().Insights.Project.Documentation.DetailedGuide)
 
 	testResult := pluginkit.TestResult{
 		Description: "Verifying that an artifact exists at the location specified for the detailed-guide.",

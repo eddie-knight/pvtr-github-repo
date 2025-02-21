@@ -36,7 +36,7 @@ func DO_07_T01() pluginkit.TestResult {
 }
 
 func DO_07_T02() pluginkit.TestResult {
-	_, err := makeApiCall(Data.Rest().Insights.Repository.Security.Assessments.Self.Evidence, false)
+	_, err := makeApiCall(Data.Rest().Insights.Repository.Security.Assessments.Self.Evidence)
 
 	testResult := pluginkit.TestResult{
 		Description: "Verifying that an artifact exists at the location specified for the self assessment.",
