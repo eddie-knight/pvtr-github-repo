@@ -19,6 +19,6 @@ RUN apk add --no-cache make git && \
     mkdir -p /.privateer/bin
 WORKDIR /.privateer/bin
 COPY --from=build /app/privateer .
-COPY --from=plugin /plugin/pvtr-osps-baseline .
+COPY --from=plugin /plugin/pvtr-github-repo .
 
 CMD ["./privateer", "run", "--binaries-path", ".", "--config", "../config.yml", "--loglevel", "${LOG_LEVEL}"]

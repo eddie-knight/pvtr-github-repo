@@ -5,7 +5,7 @@ import (
 
 	"os"
 
-	"github.com/eddie-knight/pvtr-osps-baseline/armory"
+	"github.com/eddie-knight/pvtr-github-repo/armory"
 
 	"github.com/privateerproj/privateer-sdk/command"
 	"github.com/privateerproj/privateer-sdk/config"

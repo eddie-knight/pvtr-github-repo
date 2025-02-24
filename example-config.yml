@@ -2,7 +2,7 @@ loglevel: Debug
 write-directory: output
 services:
   my-project:
-    plugin: pvtr-osps-baseline
+    plugin: pvtr-github-repo
     test-suites:
       - dev
       # - maturity_1

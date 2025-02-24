@@ -1,4 +1,4 @@
-PACKNAME=pvtr-osps-baseline
+PACKNAME=pvtr-github-repo
 BUILD_FLAGS=-X 'main.GitCommitHash=`git rev-parse --short HEAD`' -X 'main.BuiltAt=`date +%FT%T%z`'
 BUILD_WIN=@env GOOS=windows GOARCH=amd64 go build -o $(PACKNAME).exe
 BUILD_LINUX=@env GOOS=linux GOARCH=amd64 go build -o $(PACKNAME)

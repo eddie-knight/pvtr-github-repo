@@ -1,6 +1,8 @@
 # ignore the generated artifacts
 osps-baseline
 output
+pvtr-github-repo
+pvtr-osps-baseline
 
 # ignore any local dev config file
 config.yml

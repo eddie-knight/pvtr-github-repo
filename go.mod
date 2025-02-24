@@ -1,4 +1,4 @@
-module github.com/eddie-knight/pvtr-osps-baseline
+module github.com/eddie-knight/pvtr-github-repo
 
 go 1.23
 
