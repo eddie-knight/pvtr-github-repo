@@ -2,7 +2,7 @@ loglevel: Debug
 write-directory: output
 services:
   my-project:
-    plugin: pvtr-github-repo
+    plugin: pvtr-osps-baseline
     test-suites:
       - dev
       # - maturity_1
@@ -11,3 +11,4 @@ services:
     vars:
       owner: ossf
       repo: security-insights-spec
+      token: $GITHUB_TOKEN
