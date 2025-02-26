@@ -20,7 +20,7 @@ build: ## Build the binary
 	@echo "  >  Building binary ..."
 	@go build -o $(PACKNAME) -ldflags="$(BUILD_FLAGS)"
 
-package: tidy test ## Packageing static files
+package: tidy test ## Package static files
 	@echo "  >  Packaging static files..."
 
 test: ## Run tests
