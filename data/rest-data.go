@@ -29,12 +29,15 @@ type RestData struct {
 	Config              *config.Config
 	WorkflowsEnabled    bool
 	WorkflowPermissions WorkflowPermissions
-	Insights            si.SecurityInsights
-	InsightsError       bool
-	Releases            []ReleaseData
-	contents            RepoContent
-	ghClient            *github.Client `json:"-" yaml:"-"`
-	HttpClient          HttpClient     `json:"-" yaml:"-"`
+	// WorkflowPermissionsUnknown records that the Actions configuration could
+	// not be read at all, which is distinct from Actions being disabled.
+	WorkflowPermissionsUnknown bool
+	Insights                   si.SecurityInsights
+	InsightsError              bool
+	Releases                   []ReleaseData
+	contents                   RepoContent
+	ghClient                   *github.Client `json:"-" yaml:"-"`
+	HttpClient                 HttpClient     `json:"-" yaml:"-"`
 }
 
 type RepoContent struct {
@@ -149,17 +152,6 @@ func (r *RestData) checkFile(filename string) (filepath string) {
 	return filepath
 }
 
-func (r *RestData) GetFileContent(path string) (content *github.RepositoryContent, err error) {
-	content, err = r.getSourceFile(r.owner, r.repo, path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve file content for %s: %w", path, err)
-	}
-	if content == nil {
-		return nil, fmt.Errorf("file not found at %s", path)
-	}
-	return content, nil
-}
-
 // returns true when a file with case insensitive name matching support.md is found in the root or forge directories or when the readme.md contains a heading named "Support"
 func (r *RestData) HasSupportMarkdown() bool {
 	if r.checkFile("support.md") != "" {
@@ -258,62 +250,6 @@ func (r *RestData) getRepoContents() {
 	r.Config.Logger.Trace(fmt.Sprintf("found %d top-level objects from GitHub API", len(r.contents.Content)))
 }
 
-func (c *RepoContent) GetSubdirContentByPath(r *RestData, path string) (RepoContent, error) {
-	if c.SubContent == nil {
-		return RepoContent{}, fmt.Errorf("no subdirectories found")
-	}
-
-	parts := strings.Split(path, "/")
-	current := *c
-	currentPath := ""
-
-	for i, part := range parts {
-		// Build the current path for this level
-		if currentPath == "" {
-			currentPath = part
-		} else {
-			currentPath = currentPath + "/" + part
-		}
-
-		// Check if we already have this subdirectory's content
-		subdir, exists := current.SubContent[part]
-		if !exists {
-			// Find this directory in the current level's content
-			var dirEntry *github.RepositoryContent
-			for _, entry := range current.Content {
-				if entry.GetType() == "dir" && entry.GetName() == part {
-					dirEntry = entry
-					break
-				}
-			}
-
-			if dirEntry == nil {
-				return RepoContent{}, fmt.Errorf("directory '%s' not found in path '%s'", part, path)
-			}
-
-			// Fetch the contents of this directory
-			var err error
-			subdir, err = r.getSubdirContents(dirEntry.GetPath())
-			if err != nil {
-				return RepoContent{}, fmt.Errorf("failed to retrieve contents for %s: %w", dirEntry.GetPath(), err)
-			}
-
-			// Cache the result
-			current.SubContent[part] = subdir
-		}
-
-		// Move to the next level
-		current = subdir
-
-		// If this is the last part and we got here, we found the directory
-		if i == len(parts)-1 {
-			return current, nil
-		}
-	}
-
-	return current, nil
-}
-
 // getSubdirContents fetches contents of a directory, caching the result by full
 // path. Several callers probe the same directory (checkFile alone looks in
 // .github once per filename), so without the write-back the cache read below
@@ -348,29 +284,43 @@ func (r *RestData) getReleases() error {
 	return json.Unmarshal(responseData, &r.Releases)
 }
 
+// getWorkflowPermissions reads the repository's GitHub Actions configuration.
+// Both endpoints require admin access to the repository; without it GitHub
+// returns 403 and the posture is unknowable rather than absent, so the
+// distinction is recorded for the assessment step to report honestly.
 func (r *RestData) getWorkflowPermissions() error {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/actions", APIBase, r.owner, r.repo)
+	endpoint := fmt.Sprintf("%s/repos/%s/%s/actions/permissions", APIBase, r.owner, r.repo)
 	responseData, err := r.MakeApiCall(endpoint, true)
 	if err != nil {
+		r.WorkflowPermissionsUnknown = true
 		return err
 	}
 	var actionsData struct {
 		Enabled bool `json:"enabled"`
 	}
 	if err := json.Unmarshal(responseData, &actionsData); err != nil {
+		r.WorkflowPermissionsUnknown = true
 		return fmt.Errorf("failed to parse actions data: %v", err)
 	}
 	r.WorkflowsEnabled = actionsData.Enabled
 
+	// Default permissions are meaningless when Actions is switched off, so skip
+	// the second call entirely rather than spend it on an unusable answer.
+	if !r.WorkflowsEnabled {
+		return nil
+	}
+
 	endpoint = fmt.Sprintf("%s/repos/%s/%s/actions/permissions/workflow", APIBase, r.owner, r.repo)
 	responseData, err = r.MakeApiCall(endpoint, true)
 	if err != nil {
+		r.WorkflowPermissionsUnknown = true
 		return err
 	}
 	if err := json.Unmarshal(responseData, &r.WorkflowPermissions); err != nil {
+		r.WorkflowPermissionsUnknown = true
 		return fmt.Errorf("failed to parse permissions: %v", err)
 	}
-	return err
+	return nil
 }
 
 // IsCodeRepo returns true if the repository contains any programming languages.

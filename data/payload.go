@@ -59,11 +59,6 @@ func Loader(config *config.Config) (payload any, err error) {
 		return nil, err
 	}
 
-	dependencyManifestsCount, err := countDependencyManifests(client, config)
-	if err != nil {
-		return nil, err
-	}
-
 	rest, err := getRestData(ghClient, httpClient, config)
 	if err != nil {
 		return nil, err
@@ -84,7 +79,7 @@ func Loader(config *config.Config) (payload any, err error) {
 		RestData:                 rest,
 		Config:                   config,
 		RepositoryMetadata:       repositoryMetadata,
-		DependencyManifestsCount: dependencyManifestsCount,
+		DependencyManifestsCount: graphql.Repository.DependencyGraphManifests.TotalCount,
 		IsCodeRepo:               isCodeRepo,
 		client:                   client,
 		httpClient:               httpClient,

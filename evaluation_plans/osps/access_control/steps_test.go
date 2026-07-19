@@ -109,6 +109,30 @@ func Test_WorkflowDefaultReadPermissions(t *testing.T) {
 			wantResult:  gemara.NeedsReview,
 			wantMessage: "GitHub Actions is disabled for this repository; manual review required.",
 		},
+		{
+			name: "Actions configuration could not be read",
+			payload: data.Payload{
+				RestData: &data.RestData{
+					WorkflowPermissionsUnknown: true,
+				},
+			},
+			wantResult:  gemara.NeedsReview,
+			wantMessage: "Unable to read GitHub Actions configuration for this repository (requires admin access); manual review required.",
+		},
+		{
+			name: "unreadable configuration is not reported as disabled",
+			payload: data.Payload{
+				RestData: &data.RestData{
+					WorkflowPermissionsUnknown: true,
+					WorkflowsEnabled:           false,
+					WorkflowPermissions: data.WorkflowPermissions{
+						DefaultPermissions: "write",
+					},
+				},
+			},
+			wantResult:  gemara.NeedsReview,
+			wantMessage: "Unable to read GitHub Actions configuration for this repository (requires admin access); manual review required.",
+		},
 	}
 
 	for _, tt := range tests {

@@ -50,10 +50,13 @@ func BranchProtectionPreventsDeletion(payload data.Payload) (result gemara.Resul
 }
 
 func WorkflowDefaultReadPermissions(payload data.Payload) (result gemara.Result, message string, confidence gemara.ConfidenceLevel) {
-	permissions := payload.WorkflowPermissions
+	if payload.WorkflowPermissionsUnknown {
+		return gemara.NeedsReview, "Unable to read GitHub Actions configuration for this repository (requires admin access); manual review required.", confidence
+	}
 	if !payload.WorkflowsEnabled {
 		return gemara.NeedsReview, "GitHub Actions is disabled for this repository; manual review required.", confidence
 	}
+	permissions := payload.WorkflowPermissions
 
 	if permissions.DefaultPermissions == "read" && !permissions.CanApprovePullRequest {
 		result = gemara.Passed
