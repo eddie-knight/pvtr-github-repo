@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/go-github/v74/github"
 	"github.com/privateerproj/privateer-sdk/config"
@@ -24,7 +25,19 @@ type Payload struct {
 	SecurityPosture          SecurityPosture
 	client                   *githubv4.Client
 	httpClient               *http.Client
-	cachedTree               *GraphqlRepoTree
+	cache                    *payloadCache
+}
+
+// payloadCache holds lazily-fetched data shared by every step. Steps receive the
+// Payload by value (see evaluation_plans.TypedStep), so caching in a plain field
+// would write to a per-step copy and refetch once per step. Pointing at one
+// shared holder makes the cache actually shared.
+type payloadCache struct {
+	mu        sync.Mutex
+	tree      *GraphqlRepoTree
+	workflows []WorkflowFile
+	// set once workflows have been fetched, so an empty result is not refetched
+	workflowsLoaded bool
 }
 
 func Loader(config *config.Config) (payload any, err error) {
@@ -77,6 +90,7 @@ func Loader(config *config.Config) (payload any, err error) {
 		httpClient:               httpClient,
 		APICallCounter:           callCounter,
 		SecurityPosture:          securityPosture,
+		cache:                    &payloadCache{},
 	}), nil
 }
 
@@ -126,18 +140,43 @@ func (p *Payload) newBinaryChecker() *binaryChecker {
 // getTree lazily fetches and caches the repository tree so that multiple
 // checks (e.g. QA-05.01 and QA-05.02) share a single GraphQL API call.
 func (p *Payload) getTree() (*GraphqlRepoTree, error) {
-	if p.cachedTree != nil {
-		return p.cachedTree, nil
-	}
-	if p.GraphqlRepoData == nil || p.Config == nil {
+	if p.GraphqlRepoData == nil || p.Config == nil || p.cache == nil {
 		return nil, fmt.Errorf("payload missing required repository data")
+	}
+	p.cache.mu.Lock()
+	defer p.cache.mu.Unlock()
+
+	if p.cache.tree != nil {
+		return p.cache.tree, nil
 	}
 	tree, err := fetchGraphqlRepoTree(p.Config, p.client, p.Repository.DefaultBranchRef.Name)
 	if err != nil {
 		return nil, err
 	}
-	p.cachedTree = tree
+	p.cache.tree = tree
 	return tree, nil
+}
+
+// GetWorkflowFiles returns the decoded contents of every file in
+// .github/workflows using a single GraphQL call, cached for reuse across the
+// several build/release checks that inspect workflows.
+func (p *Payload) GetWorkflowFiles() ([]WorkflowFile, error) {
+	if p.GraphqlRepoData == nil || p.Config == nil || p.cache == nil {
+		return nil, fmt.Errorf("payload missing required repository data")
+	}
+	p.cache.mu.Lock()
+	defer p.cache.mu.Unlock()
+
+	if p.cache.workflowsLoaded {
+		return p.cache.workflows, nil
+	}
+	files, err := fetchWorkflowFiles(p.Config, p.client, p.Repository.DefaultBranchRef.Name, ".github/workflows")
+	if err != nil {
+		return nil, err
+	}
+	p.cache.workflows = files
+	p.cache.workflowsLoaded = true
+	return files, nil
 }
 
 // GetSuspectedBinaries fetches the repository tree and returns file names that

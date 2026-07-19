@@ -32,7 +32,6 @@ type RestData struct {
 	Insights            si.SecurityInsights
 	InsightsError       bool
 	Releases            []ReleaseData
-	Rulesets            []Ruleset
 	contents            RepoContent
 	ghClient            *github.Client `json:"-" yaml:"-"`
 	HttpClient          HttpClient     `json:"-" yaml:"-"`
@@ -41,15 +40,6 @@ type RestData struct {
 type RepoContent struct {
 	Content    []*github.RepositoryContent
 	SubContent map[string]RepoContent
-}
-
-type Ruleset struct {
-	Type       string `json:"type"`
-	Parameters struct {
-		RequiredChecks []struct {
-			Context string `json:"context"`
-		} `json:"required_status_checks"`
-	} `json:"parameters"`
 }
 
 type ReleaseData struct {
@@ -157,27 +147,6 @@ func (r *RestData) checkFile(filename string) (filepath string) {
 		}
 	}
 	return filepath
-}
-
-func (r *RestData) GetDirectoryContent(path string) (dirContent []*github.RepositoryContent, err error) {
-	workflowsDir, err := r.contents.GetSubdirContentByPath(r, path)
-	if err != nil {
-		return nil, fmt.Errorf("content not found at %s: %w", path, err)
-	}
-
-	for _, file := range workflowsDir.Content {
-		if file.GetType() != "file" {
-			continue
-		}
-
-		content, err := r.getSourceFile(r.owner, r.repo, file.GetPath())
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch workflow file %s: %s", file.GetPath(), err.Error())
-		}
-		dirContent = append(dirContent, content)
-	}
-
-	return dirContent, nil
 }
 
 func (r *RestData) GetFileContent(path string) (content *github.RepositoryContent, err error) {
@@ -345,7 +314,10 @@ func (c *RepoContent) GetSubdirContentByPath(r *RestData, path string) (RepoCont
 	return current, nil
 }
 
-// getSubdirContents fetches contents of a directory
+// getSubdirContents fetches contents of a directory, caching the result by full
+// path. Several callers probe the same directory (checkFile alone looks in
+// .github once per filename), so without the write-back the cache read below
+// never hits and each probe costs an API call.
 func (r *RestData) getSubdirContents(path string) (RepoContent, error) {
 	if len(r.contents.SubContent[path].Content) > 0 {
 		return r.contents.SubContent[path], nil
@@ -355,10 +327,16 @@ func (r *RestData) getSubdirContents(path string) (RepoContent, error) {
 		return RepoContent{}, err
 	}
 
-	return RepoContent{
+	subdir := RepoContent{
 		Content:    content,
 		SubContent: make(map[string]RepoContent),
-	}, nil
+	}
+	// getRepoContents only builds SubContent when the root fetch succeeds.
+	if r.contents.SubContent == nil {
+		r.contents.SubContent = make(map[string]RepoContent)
+	}
+	r.contents.SubContent[path] = subdir
+	return subdir, nil
 }
 
 func (r *RestData) getReleases() error {
@@ -393,17 +371,6 @@ func (r *RestData) getWorkflowPermissions() error {
 		return fmt.Errorf("failed to parse permissions: %v", err)
 	}
 	return err
-}
-
-func (r *RestData) GetRulesets(branchName string) []Ruleset {
-	endpoint := fmt.Sprintf("%s/repos/%s/%s/rules/branches/%s", APIBase, r.owner, r.repo, branchName)
-	responseData, err := r.MakeApiCall(endpoint, true)
-	if err != nil {
-		r.Config.Logger.Error(fmt.Sprintf("error getting rulesets: %s", err.Error()))
-	}
-
-	_ = json.Unmarshal(responseData, &r.Rulesets)
-	return r.Rulesets
 }
 
 // IsCodeRepo returns true if the repository contains any programming languages.
